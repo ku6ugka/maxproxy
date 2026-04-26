@@ -25,6 +25,8 @@ text-decoration:none;font-size:14px;letter-spacing:2px;border-radius:4px;}
 <a href="/proxy/">ОТКРЫТЬ САЙТ</a>
 </div></body></html>"""
 
+SESSION = requests.Session()
+
 @app.route("/")
 def index():
     return render_template_string(HTML)
@@ -36,35 +38,29 @@ def proxy(path):
     if request.query_string:
         url += f"?{request.query_string.decode()}"
     try:
-        r = requests.get(url, headers={
+        r = SESSION.get(url, headers={
             "User-Agent": UA,
             "Accept": "text/html,application/xhtml+xml,*/*;q=0.9",
             "Accept-Language": "ru-RU,ru;q=0.9",
-            "Accept-Encoding": "identity",
         }, allow_redirects=True, timeout=15)
     except Exception as e:
         return f"<p>Ошибка: {e}</p>", 502
-    
+
     ct = r.headers.get("Content-Type", "text/html")
-    
+
     if "text/html" in ct:
-        try:
-            html = r.content.decode("utf-8")
-        except:
-            try:
-                html = r.content.decode("windows-1251")
-            except:
-                html = r.content.decode("latin-1")
-        
+        # requests автоматически декодирует gzip через .text
+        html = r.text
+
         html = re.sub(
             r'(href|src|action)=["\']https?://(?:www\.)?max\.ru(/[^"\']*)?["\']',
             lambda m: f'{m.group(1)}="/proxy{m.group(2) or "/"}"', html)
         html = re.sub(
             r'(href|src|action)=["\'](/[^"\']*)["\']',
             lambda m: f'{m.group(1)}="/proxy{m.group(2)}"', html)
-        
+
         return Response(html, content_type="text/html; charset=utf-8")
-    
+
     return Response(r.content, content_type=ct, status=r.status_code)
 
 if __name__ == "__main__":
